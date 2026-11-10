@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from pathlib import Path
+import shutil
 import tempfile
 import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -47,7 +48,11 @@ async def run():
         corrupt.write_bytes(b'not-a-zip-file-data-xxxx')
         zipit(sensitive, {'app.js': b'hello', '.env': b'should-not-be-in-shared-source'})
         async with async_playwright() as play:
-            browser = await play.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox'])
+            browser_options = {'headless': True, 'args': ['--no-sandbox']}
+            local_chromium = shutil.which('chromium') or shutil.which('chromium-browser')
+            if local_chromium:
+                browser_options['executable_path'] = local_chromium
+            browser = await play.chromium.launch(**browser_options)
             page = await browser.new_page(accept_downloads=True, viewport={'width': 375, 'height': 812})
             msgs=[]; network=[]
             page.on('console', lambda m: msgs.append(m.text) if m.type=='error' else None)
