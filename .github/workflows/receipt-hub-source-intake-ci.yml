@@ -1,0 +1,74 @@
+name: Receipt Hub source intake — review-only CI
+
+on:
+  pull_request:
+    paths:
+      - "tools/source-intake/**"
+      - ".github/workflows/receipt-hub-source-intake-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-intake-regression:
+    name: source ZIP browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout untrusted PR code with read-only access
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Verify inline script Content Security Policy
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          import hashlib
+          import re
+          s = Path("tools/source-intake/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", s, flags=re.S)
+          assert len(scripts) == 1, "Expected exactly one inline script"
+          digest = base64.b64encode(hashlib.sha256(scripts[0].encode("utf-8")).digest()).decode()
+          assert f"script-src 'sha256-{digest}'" in s, "CSP inline script hash mismatch"
+          assert "connect-src 'none'" in s, "Missing no-network CSP boundary"
+          print("PASS: HTML script SHA-256 / CSP hash")
+          PY
+      - name: Install sandboxed browser test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Test synthetic ZIP safety and source SHA-256 logic
+        run: python tools/source-intake/tests/test_browser.py
+
+  webkit-mobile-compat:
+    name: WebKit mobile viewport compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout PR source without persisted token
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install WebKit browser and Python dependencies
+        run: |
+          python -m pip install --disable-pip-version-check "playwright==1.57.0"
+          python -m playwright install --with-deps webkit
+      - name: Test ZIP intake on WebKit engine (synthetic ZIPs)
+        env:
+          SKIP_CHROMIUM: "1"
+        run: python tools/source-intake/tests/test_browser_compat.py
+      - name: Test downloaded HTML opened via file URL in WebKit
+        env:
+          SKIP_CHROMIUM: "1"
+          RUN_FILE_URL: "1"
+        run: python tools/source-intake/tests/test_browser_compat.py
