@@ -33,9 +33,11 @@ async def check(browser_type, source_dir: Path, url: str):
     errors=[]
     unexpected=[]
     page.on('pageerror', lambda ex:errors.append(str(ex)))
-    page.on('request', lambda req: unexpected.append(req.url) if not req.url.startswith('http://127.0.0.1:') else None)
+    page.on('request', lambda req: unexpected.append(req.url) if req.url.startswith(('http://','https://')) and not req.url.startswith('http://127.0.0.1:') else None)
     try:
-        if os.environ.get('RUN_OFFLINE_SET_CONTENT') == '1':
+        if os.environ.get('RUN_FILE_URL') == '1':
+            await page.goto(HTML.resolve().as_uri(),wait_until='domcontentloaded')
+        elif os.environ.get('RUN_OFFLINE_SET_CONTENT') == '1':
             await page.set_content(HTML.read_text(encoding='utf-8'))
         else:
             await page.goto(url,wait_until='domcontentloaded')
@@ -59,7 +61,8 @@ async def check(browser_type, source_dir: Path, url: str):
         assert cv['hashes']['v79']['src/app.js']==expected_hash,cv
         assert not errors, errors
         assert not unexpected, unexpected
-        print(f'PASS {engine}: ZIP comparison, source SHA-256, report JSON, 375x812 viewport, no outbound requests')
+        mode='file://' if os.environ.get('RUN_FILE_URL') == '1' else 'HTTP'
+        print(f'PASS {engine} {mode}: ZIP comparison, source SHA-256, report JSON, 375x812 viewport, no outbound requests')
     finally:
         await browser.close()
 
