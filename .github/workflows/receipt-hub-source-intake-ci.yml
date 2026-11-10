@@ -67,3 +67,8 @@ jobs:
         env:
           SKIP_CHROMIUM: "1"
         run: python tools/source-intake/tests/test_browser_compat.py
+      - name: Test downloaded HTML opened via file URL in WebKit
+        env:
+          SKIP_CHROMIUM: "1"
+          RUN_FILE_URL: "1"
+        run: python tools/source-intake/tests/test_browser_compat.py
