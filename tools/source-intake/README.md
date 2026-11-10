@@ -23,7 +23,14 @@ python tools/source-intake/tests/test_browser.py
 
 The suite performs 23 labeled test scenarios with synthetic ZIPs. It covers SHA-256 of decompressed source, CRC32 collision detection, source-only ZIP exports, directory/file collisions, disguised symlink metadata, path traversal, CRC mismatch, secret-pattern blocking, unsupported compression engines and related cases.
 
-**Test scope:** Chromium at an iPhone-sized viewport. This is **not** a real iPhone Safari test or a comparison of the real v77/v79 ZIP files.
+**Test scope:** Chromium at an iPhone-sized viewport plus WebKit on a Linux CI runner at 375×812. The WebKit compatibility smoke test covers synthetic ZIP import, source SHA-256 comparison, JSON export and no outbound network access. Run locally or in CI with:
+
+```sh
+python -m playwright install webkit
+SKIP_CHROMIUM=1 python tools/source-intake/tests/test_browser_compat.py
+```
+
+GitHub Actions Run #4 on HEAD `3a11303a466ff6fd06dc8b75958ca4e02160bee4` completed **SUCCESS** for both browser jobs. These tests use **synthetic ZIP files** and Linux WebKit, **not** a physical iPhone Safari device and **not** the real v77/v79 ZIP files. Local `file://` handling is also not covered by this CI.
 
 ## Privacy and limitations
 
