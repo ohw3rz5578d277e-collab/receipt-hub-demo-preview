@@ -59,10 +59,21 @@ async def check(browser_type, source_dir: Path, url: str):
         assert cv['diff']['added']==['src/mobile.js'],cv['diff']
         expected_hash=hashlib.sha256(b'const version=79;').hexdigest()
         assert cv['hashes']['v79']['src/app.js']==expected_hash,cv
+        # Source-only ZIP must be usable even if HTML is opened from file://.
+        async with page.expect_download(timeout=20000) as export_event:
+            await page.locator('#exportSource').click()
+        export_path=source_dir/f'source-export-{engine}.zip'
+        await (await export_event.value).save_as(export_path)
+        with ZipFile(export_path,'r') as exported:
+            names=sorted(exported.namelist())
+            assert names==['src/app.js','src/mobile.js'],names
+            assert exported.read('src/app.js')==b'const version=79;'
+            assert exported.read('src/mobile.js')==b'export const mobile=true;'
+            assert exported.testzip() is None, 'Export ZIP CRC verification failed'
         assert not errors, errors
         assert not unexpected, unexpected
         mode='file://' if os.environ.get('RUN_FILE_URL') == '1' else 'HTTP'
-        print(f'PASS {engine} {mode}: ZIP comparison, source SHA-256, report JSON, 375x812 viewport, no outbound requests')
+        print(f'PASS {engine} {mode}: ZIP comparison, SHA-256, JSON, source-only ZIP export and re-read, excluded files, no outbound requests')
     finally:
         await browser.close()
 
@@ -74,6 +85,10 @@ async def run():
         with ZipFile(d/'v79.zip','w',ZIP_DEFLATED) as z:
             z.writestr('v79/src/app.js',b'const version=79;')
             z.writestr('v79/src/mobile.js',b'export const mobile=true;')
+            z.writestr('v79/receipts/customer.png',b'PRIVATE_PLACEHOLDER_IMAGE')
+            z.writestr('v79/.env',b'RECEIPT_HUB_TEST_ONLY=1')
+            z.writestr('v79/node_modules/vendor.js',b'/* vendor excluded */')
+
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(QuietHandler,directory=str(HTML.parent)))
         thread=threading.Thread(target=server.serve_forever,daemon=True)
         thread.start()
