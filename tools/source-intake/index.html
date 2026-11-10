@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YEPNlT4sMeudCs+Pu2Bm6gS+kgAxAD0MyVarWLyK7/0='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Receipt Hub｜ZIP差分・ソース受け渡し</title>
+<meta name="description" content="v77とv79のソースZIPを端末内だけで比較するオフラインツール">
+<style>
+:root {font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;color:#172433;background:#f6f7f7}
+*{box-sizing:border-box}
+body{margin:0;font-size:15px;line-height:1.65}
+main{max-width:940px;margin:auto;padding:34px 18px 72px}
+header{display:flex;gap:14px;align-items:flex-start;margin:0 0 24px}
+mark.logo{background:#183b3b;color:white;width:45px;height:45px;border-radius:14px;display:grid;place-items:center;font-size:21px;font-weight:800;flex-shrink:0}
+h1{font-size:25px;line-height:1.3;letter-spacing:-.045em;margin:0 0 7px}
+header p{color:#687783;margin:0;font-size:13px}
+.status{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pill{font-size:12px;padding:3px 10px;border-radius:100px;background:#e7ede9;color:#285d50;font-weight:650}
+.pill.neutral{background:#eaeef2;color:#576a79}
+.panel{background:white;border:1px solid #e1e6e5;box-shadow:0 2px 10px #253b3309;border-radius:18px;padding:22px;margin-top:16px}
+.panel h2{font-size:16px;margin:0 0 13px;letter-spacing:-.025em}
+.muted{color:#6b7a83;font-size:13px;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.drop{display:block;position:relative;border:1.5px dashed #a7b9b6;background:#f8faf9;border-radius:13px;padding:20px;min-height:142px;cursor:pointer;transition:.2s}
+.drop:hover,.drop:focus-within{border-color:#286f5d;background:#f0f8f4}
+.drop strong{display:block;font-size:16px;margin-bottom:5px}
+.drop .helper{display:block;font-size:12px;color:#718088}
+.drop .filename{display:block;font-size:12px;font-weight:650;word-break:break-all;margin-top:13px;color:#275f51}
+.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+button{font:inherit;cursor:pointer;border:0;background:#214d46;color:white;font-weight:700;border-radius:11px;padding:12px 18px;min-height:45px}
+button.secondary{background:white;color:#234a43;border:1px solid #9cbbb1}
+button:disabled{opacity:.38;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
+.note{border-left:3px solid #95ada5;padding:9px 12px;margin:14px 0 0;background:#f4f7f6;font-size:12px;color:#546872}
+.error{background:#fff1ec;border:1px solid #ebcbbf;color:#8f3a2a;padding:12px;border-radius:10px;font-size:13px;white-space:pre-wrap;margin-top:14px}
+.output{display:none}
+.output.visible{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.metric{background:#f7faf8;padding:13px;border-radius:12px}
+.metric strong{display:block;font-size:25px;font-variant-numeric:tabular-nums;line-height:1.3}
+.metric span{font-size:12px;color:#61767b}
+pre{white-space:pre-wrap;word-break:break-word;background:#f8f9f9;padding:16px;border-radius:12px;border:1px solid #e9eceb;color:#263b43;max-height:350px;overflow:auto;font-size:12px}
+details{border-top:1px solid #e7edeb;padding:12px 0}
+details summary{cursor:pointer;font-weight:650}
+code{background:#eef2f0;border-radius:4px;padding:1px 4px;font-size:12px}
+small{font-size:12px;color:#6b7a83}
+footer{margin-top:22px;text-align:center;color:#839294;font-size:12px}
+@media(max-width:620px){main{padding:24px 14px 55px}h1{font-size:21px}.panel{padding:17px}.grid{grid-template-columns:1fr}.drop{min-height:118px;padding:15px}.metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<mark class="logo" aria-hidden="true">R</mark>
+<div><h1>Receipt Hub <span style="color:#53796e">ZIP差分チェック</span></h1>
+<p>v119｜ソースSHA-256内容照合とソース限定ZIP作成</p>
+<div class="status"><span class="pill">ファイルは送信されません</span><span class="pill neutral">コードの実行なし</span><span class="pill neutral">Production変更なし</span></div>
+</div>
+</header>
+<section class="panel" aria-labelledby="select-title">
+<h2 id="select-title">比較するZIPを選択</h2>
+<p class="muted">iPhoneなら「ファイル」アプリに保存したZIPを選択してください。v79だけでもファイル構成を確認できます。</p>
+<div class="grid">
+<label class="drop"><strong>① v79 正規ソース候補</strong><span class="helper">必須｜例：receipt_hub_v79_mac_ready_manual_or_ocr.zip</span><span class="filename" id="name79">ファイルを選択</span><input id="file79" type="file" accept=".zip,application/zip" aria-label="v79 ZIPを選択"></label>
+<label class="drop"><strong>② v77 比較元</strong><span class="helper">任意｜例：receipt_hub_v77_mac_local_trial.zip</span><span class="filename" id="name77">ファイルを選択</span><input id="file77" type="file" accept=".zip,application/zip" aria-label="v77 ZIPを選択"></label>
+</div>
+<div class="actions"><button id="analyze">ZIPを検査する</button><button id="reset" class="secondary" type="button">選択を解除</button></div>
+<p class="note">重要：最初の比較はファイル名・サイズ・CRC32による暫定差分です。v77とv79を選択した後に「ソースの内容SHA-256を比較」を押すと、展開したソースコードのCRC32とSHA-256を確認できます。画像・DB等は対象外です。</p>
+<div id="error" class="error" hidden role="alert"></div>
+</section>
+<section class="panel output" id="results" aria-live="polite">
+<h2 id="result-heading">検査結果</h2>
+<p id="result-note" class="muted"></p>
+<div class="metrics" id="metrics"></div>
+<div class="actions"><button id="verifyContent" class="secondary" type="button">ソースの内容SHA-256を比較</button><button id="download">比較結果をJSONで保存</button><button id="copy" class="secondary">要約をコピー</button></div>
+<div id="details"></div>
+<div class="panel" style="box-shadow:none;background:#fbfdfb;margin-top:16px" aria-labelledby="export-title">
+<h2 id="export-title">v79のソース限定ZIPを作る</h2>
+<p class="muted">選択したv79 ZIPからコード・設定・説明ファイルだけを新しいZIPにコピーします。画像・既知の機密名などは除外しますが、個人情報をすべて除去できるわけではありません。元ZIP内のコードは実行しません。</p>
+<div id="exportStats" class="note"></div>
+<div class="actions"><button id="exportSource" type="button">ソース限定ZIPを保存</button></div>
+<p class="note">重要：ソースコードや設定の本文に埋め込まれた鍵・個人情報までは検出できません。保存後に内容を確認し、問題なければZIPをチャットに添付してください。書き出し対象のファイルは展開後のサイズ・CRC32・UTF-8テキスト形式を検証します。単純な秘密情報パターンも検出しますが、機密情報の完全な検出はできません。</p>
+</div>
+</section>
+<footer>Receipt Hub · v119 source content SHA-256 comparison · offline review</footer>
+</main>
+<script>
+
+(()=>{'use strict';
+const MAX_ARCHIVE=50*1024*1024,MAX_CD=24*1024*1024,MAX_ENTRIES=5000,MAX_TOTAL=300*1024*1024,MAX_SINGLE=50*1024*1024,MAX_RATIO=300;
+const MAX_SOURCE_TEXT=8*1024*1024; // Small and predictable upper bound for phone-memory safety.
+const CRC_TABLE=Uint32Array.from({length:256},(_,n)=>{for(let j=0;j<8;j++)n=(n&1)?(0xedb88320^(n>>>1)):(n>>>1);return n>>>0;});
+function crcUpdate(crc,bytes){for(const b of bytes)crc=(crc>>>8)^CRC_TABLE[(crc^b)&255];return crc>>>0;}
+function riskySourceContent(text){
+ // High-specificity patterns only: this is not a general PII or credential scanner.
+ return /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|\bAKIA[A-Z0-9]{16}\b|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}/.test(text);
+}
+async function verifySourcePayload(blob,f){
+ if(f.size>MAX_SOURCE_TEXT)fail('スマホ安全上限（8MB）を超えるソース: '+f.path);
+ let stream=blob.stream();
+ if(f.method===8){
+  if(typeof DecompressionStream!=='function')fail('このブラウザはZIP圧縮の検査に非対応です。別のブラウザで開いてください');
+  let ds;try{ds=new DecompressionStream('deflate-raw');}catch{fail('このブラウザはdeflate-raw非対応です。別のブラウザで開いてください')}
+  stream=stream.pipeThrough(ds);
+ }
+ const reader=stream.getReader();let count=0,crc=0xffffffff,parts=[];
+ try{
+  for(;;){const {value,done}=await reader.read();if(done)break;
+   count+=value.length;
+   if(count>MAX_SOURCE_TEXT||count>f.size)fail('展開時のサイズが不正です: '+f.path);
+   crc=crcUpdate(crc,value);parts.push(value);
+  }
+ }catch(e){throw Error('ソースの解凍/検証に失敗: '+f.path+'｜'+(e?.message??String(e)))}
+ finally{try{await reader.cancel();}catch{}}
+ if(count!==f.size||((crc^0xffffffff)>>>0)!==f.crc)fail('実データのサイズ・CRC32が一致しません: '+f.path);
+ const bytes=new Uint8Array(count);let pos=0;
+ for(const part of parts){bytes.set(part,pos);pos+=part.length}
+ if(bytes.includes(0))fail('ソース拡張子でもバイナリ内容を検出: '+f.path);
+ let decoded;try{decoded=decoder.decode(bytes)}catch{fail('UTF-8以外のソースは共有前の変換が必要: '+f.path)}
+ if(riskySourceContent(decoded))fail('鍵・認証情報の可能性があるため共有ZIP作成を停止: '+f.path);
+ return {count,sha256:await payloadSHA256(bytes)};
+}
+
+const $=id=>document.getElementById(id);
+const state={v77:null,v79:null,report:null};
+const encoder=new TextEncoder(),decoder=new TextDecoder('utf-8',{fatal:true});
+function fail(message){throw Error(message)}
+function hex32(n){return (n>>>0).toString(16).padStart(8,'0')}
+function formatSize(n){return new Intl.NumberFormat('ja-JP').format(n)+' B'}
+function validName(name){
+ if(!name||name.length>2048||name.startsWith('/')||/^[A-Za-z]:/.test(name)||/[\\\u0000-\u001f\u007f]/.test(name))fail('危険なファイル名: '+name.slice(0,120));
+ const parts=name.replace(/\/$/,'').split('/');
+ if(parts.some(x=>!x||x==='.'||x==='..'||/[:. ]$/.test(x)||x.includes(':')))fail('危険なパス構造: '+name.slice(0,120));
+ for(const p of parts){const root=p.split('.')[0].toLowerCase();if(/^(con|prn|aux|nul|conin\$|conout\$|com[1-9]|lpt[1-9])$/.test(root))fail('予約デバイス名: '+name);
+  if(/[\p{Cf}\p{Cs}]/u.test(p))fail('Unicode制御文字を含むZIP名: '+name)}
+ return name.normalize('NFC').replace(/\/$/,'');
+}
+function ignoreMac(path){return path.startsWith('__MACOSX/')||path.startsWith('._')||path.endsWith('/.DS_Store')||path==='.DS_Store'||path.includes('/._')}
+function area(path){const s=path.toLowerCase(),domains=[
+ ['OCR・画像解析',['ocr','tesseract','recognition','vision','image','exif']],
+ ['撮影・モバイル',['camera','capture','scanner','photo','mobile','iphone','pwa']],
+ ['保存・DB',['sqlite','schema','migration','database','storage','d1','r2','.sql']],
+ ['同期・通信',['sync','worker','upload','offline','queue','api','http']],
+ ['会計・出力',['accounting','yayoi','invoice','export','receipt_csv','tax','.csv']],
+ ['画面・UX',['.html','.css','dashboard','ui/','view','screen','template','.jsx']]
+ ];const matching=domains.filter(x=>x[1].some(w=>s.includes(w))).map(x=>x[0]);return matching.length?matching:['アプリ本体・その他']}
+function isSource(path){return /\.(py|js|mjs|cjs|ts|tsx|jsx|html|htm|css|json|jsonc|sql|sh|bash|toml|yaml|yml|swift|rb|php|vue|svelte)$/i.test(path)}
+function sensitive(path){const name=path.split('/').at(-1).toLowerCase();return name==='.env'||name.startsWith('.env.')||['id_rsa','id_ed25519','credentials.json','service-account.json'].includes(name)||/\.(pem|p12|pfx|key)$/.test(name)}
+const SHARE_EXT=/\.(py|js|mjs|cjs|ts|tsx|jsx|html|htm|css|json|jsonc|sql|sh|bash|toml|yaml|yml|swift|rb|php|vue|svelte|md|txt)$/i;
+const DENY_DIR=new Set(['__macosx','.git','.hg','.svn','node_modules','venv','.venv','__pycache__','dist','build','.next','.cache','coverage','.secrets','private','backups']);
+function blockedSourcePath(path){
+ const parts=path.split('/'),leaf=parts.at(-1).toLowerCase();
+ if(parts.slice(0,-1).some(p=>DENY_DIR.has(p.toLowerCase())))return true;
+ if(sensitive(path)||/^\._/.test(leaf)||/^(?:secret|credential|password|token|apikey|api_key|private_key)[._-]/i.test(leaf))return true;
+ if(/(?:^|[._-])(?:secrets?|credentials?|passwords?|private[_-]?keys?|tokens?)(?:[._-]|$)/i.test(leaf))return true;
+ if(/(?:^|[._-])local[._-](?:settings|config|secrets?)(?:[._-]|$)/i.test(leaf))return true;
+ return false;
+}
+function sharePlan(source){
+ const included=[],excluded=[];
+ for(const f of source.files){
+  if(SHARE_EXT.test(f.path)&&!blockedSourcePath(f.path))included.push(f);
+  else excluded.push({path:f.path,reason:blockedSourcePath(f.path)?'機密/生成物の可能性':'ソース対象外'});
+ }
+ return {included,excluded};
+}
+function writeU16(v,offset,n){v.setUint16(offset,n,true)}
+function writeU32(v,offset,n){v.setUint32(offset,n>>>0,true)}
+// Repacks original compressed bytes (store/deflate only) into a fresh, source-only ZIP.
+// Decompresses only selected source text for CRC32/UTF-8 and high-specificity risk checks.
+// Does NOT execute user code; the returned ZIP preserves original verified compressed bytes.
+async function makeSourceZip(file,source){
+ if((await archiveHash(file))!==source.sha256)fail('v79 ZIPが前回の解析時から変更されています');
+ const plan=sharePlan(source);
+ if(!plan.included.length)fail('共有可能なソースファイルがありません');
+ const pieces=[],central=[];let offset=0,cdLength=0,usedRanges=[];
+ const sorted=[...plan.included].sort((a,b)=>a.path.localeCompare(b.path,'ja'));
+ for(const f of sorted){
+  if(![0,8].includes(f.method))fail('未対応の圧縮方式: '+f.path);
+  if(f.flags&((1<<0)|(1<<6)|(1<<13)))fail('暗号化/保護ZIPは非対応: '+f.path);
+  const hdr=new DataView(await file.slice(f.offset,f.offset+30).arrayBuffer());
+  if(hdr.byteLength!==30||hdr.getUint32(0,true)!==0x04034b50)fail('ローカルZIPヘッダが不正: '+f.path);
+  const localFlag=hdr.getUint16(6,true),localMethod=hdr.getUint16(8,true);
+  const localNameLen=hdr.getUint16(26,true),localExtraLen=hdr.getUint16(28,true);
+  const dataStart=f.offset+30+localNameLen+localExtraLen,dataEnd=dataStart+f.compressed;
+  if(dataEnd>source.centralStart||dataEnd>file.size)fail('圧縮データが中央ディレクトリを超えています: '+f.path);
+  if(localMethod!==f.method||localFlag!==f.flags)fail('中央/ローカルヘッダが不一致: '+f.path);
+  const localName=decoder.decode(new Uint8Array(await file.slice(f.offset+30,f.offset+30+localNameLen).arrayBuffer()));
+  if(localName!==f.originalPath)fail('中央/ローカルファイル名が不一致: '+f.path);
+  if(!(f.flags&8) && (hdr.getUint32(14,true)!==f.crc||hdr.getUint32(18,true)!==f.compressed||hdr.getUint32(22,true)!==f.size))fail('中央/ローカルサイズ・CRCが不一致: '+f.path);
+  await verifySourcePayload(file.slice(dataStart,dataEnd),f);
+  usedRanges.push({start:f.offset,end:dataEnd,path:f.path});
+  const nameBytes=encoder.encode(f.path);if(nameBytes.length>65535)fail('ZIP名が長すぎます');
+  const local=new Uint8Array(30+nameBytes.length),l=new DataView(local.buffer);
+  writeU32(l,0,0x04034b50);writeU16(l,4,20);writeU16(l,6,0x0800);writeU16(l,8,f.method);
+  writeU32(l,14,f.crc);writeU32(l,18,f.compressed);writeU32(l,22,f.size);writeU16(l,26,nameBytes.length);local.set(nameBytes,30);
+  const c=new Uint8Array(46+nameBytes.length),d=new DataView(c.buffer);
+  writeU32(d,0,0x02014b50);writeU16(d,4,20);writeU16(d,6,20);writeU16(d,8,0x0800);writeU16(d,10,f.method);
+  writeU32(d,16,f.crc);writeU32(d,20,f.compressed);writeU32(d,24,f.size);writeU16(d,28,nameBytes.length);
+  writeU32(d,42,offset);c.set(nameBytes,46);central.push(c);cdLength+=c.length;
+  pieces.push(local,file.slice(dataStart,dataEnd));offset+=local.length+f.compressed;
+ }
+ usedRanges.sort((a,b)=>a.start-b.start);
+ for(let i=1;i<usedRanges.length;i++)if(usedRanges[i].start<usedRanges[i-1].end)fail('ファイルのZIP実体が重複しています');
+ if(offset+cdLength+22>0xffffffff||central.length>65535)fail('ZIP出力サイズの制限を超えています');
+ const end=new Uint8Array(22),v=new DataView(end.buffer);
+ writeU32(v,0,0x06054b50);writeU16(v,8,central.length);writeU16(v,10,central.length);
+ writeU32(v,12,cdLength);writeU32(v,16,offset);
+ return {blob:new Blob([...pieces,...central,end],{type:'application/zip'}),count:central.length,verified:central.length,excluded:plan.excluded.length};
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+
+async function verifiedSourceEntry(file,source,f){
+ if(![0,8].includes(f.method))fail('未対応の圧縮方式: '+f.path);
+ if(f.flags&((1<<0)|(1<<6)|(1<<13)))fail('暗号化/保護ZIPは非対応: '+f.path);
+ const hdr=new DataView(await file.slice(f.offset,f.offset+30).arrayBuffer());
+ if(hdr.byteLength!==30||hdr.getUint32(0,true)!==0x04034b50)fail('ローカルZIPヘッダが不正: '+f.path);
+ const localFlags=hdr.getUint16(6,true),localMethod=hdr.getUint16(8,true),nameLength=hdr.getUint16(26,true),extraLength=hdr.getUint16(28,true);
+ const start=f.offset+30+nameLength+extraLength,end=start+f.compressed;
+ if(end>source.centralStart||end>file.size)fail('圧縮データの位置が不正: '+f.path);
+ if(localMethod!==f.method||localFlags!==f.flags)fail('中央/ローカルヘッダが不一致: '+f.path);
+ let name;try{name=decoder.decode(new Uint8Array(await file.slice(f.offset+30,f.offset+30+nameLength).arrayBuffer()))}
+ catch{fail('ファイル名のUTF-8が不正: '+f.path)}
+ if(name!==f.originalPath)fail('中央/ローカルファイル名が不一致: '+f.path);
+ if(!(f.flags&8)&&(hdr.getUint32(14,true)!==f.crc||hdr.getUint32(18,true)!==f.compressed||hdr.getUint32(22,true)!==f.size))fail('ローカルサイズ・CRC32の不一致: '+f.path);
+ return verifySourcePayload(file.slice(start,end),f);
+}
+async function contentHashReport(file77,file79,source77,source79){
+ // SHA-256 is computed over the actual decompressed UTF-8 payload, never ZIP metadata.
+ if(!source77)fail('内容SHA-256比較にはv77とv79の両方のZIPが必要です');
+ if((await archiveHash(file77))!==source77.sha256||(await archiveHash(file79))!==source79.sha256)fail('選択したZIPが解析後に変更されました');
+ const hashed={v77:{},v79:{}};
+ for(const [label,file,source] of [['v77',file77,source77],['v79',file79,source79]]){
+  const files=source.files.filter(f=>isSource(f.path)&&!blockedSourcePath(f.path));
+  for(const item of files){
+   const result=await verifiedSourceEntry(file,source,item);
+   hashed[label][item.path]=result.sha256;
+  }
+ }
+ const all=[...new Set([...Object.keys(hashed.v77),...Object.keys(hashed.v79)])].sort((a,b)=>a.localeCompare(b,'ja'));
+ const diff={added:[],changed:[],removed:[],unchanged:[]};
+ for(const path of all){const old=hashed.v77[path],now=hashed.v79[path];
+  if(old===undefined)diff.added.push(path);
+  else if(now===undefined)diff.removed.push(path);
+  else if(old===now)diff.unchanged.push(path);
+  else diff.changed.push(path);
+ }
+ // SHA-256 does not prove provenance; this is restricted to source extensions, not binary/metadata files.
+ return {status:'PASS',method:'SHA-256_OF_VERIFIED_DECOMPRESSED_SOURCE',sourceOnly:true,sourceFilesHashed:{v77:Object.keys(hashed.v77).length,v79:Object.keys(hashed.v79).length},diff,hashes:hashed,limitations:['ソース対象外の画像等は内容照合しない','SHA-256は原本の入手経路・真正性を証明しない','実アプリの統合・実機動作を確認したものではない']};
+}
+
+function sha256Fallback(bytes){
+ const k=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+ const h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+ const size=bytes.length,padded=new Uint8Array(Math.ceil((size+9)/64)*64);padded.set(bytes);padded[size]=128;
+ const v=new DataView(padded.buffer),hi=Math.floor(size/0x20000000),lo=(size*8)>>>0;
+ v.setUint32(padded.length-8,hi,false);v.setUint32(padded.length-4,lo,false);
+ const r=(x,n)=>(x>>>n)|(x<<(32-n)),w=new Uint32Array(64);
+ for(let base=0;base<padded.length;base+=64){
+  for(let i=0;i<16;i++)w[i]=v.getUint32(base+i*4,false);
+  for(let i=16;i<64;i++){const x=w[i-15],y=w[i-2];w[i]=(w[i-16]+(r(x,7)^r(x,18)^(x>>>3))+w[i-7]+(r(y,17)^r(y,19)^(y>>>10)))>>>0}
+  let [a,b,c,d,e,f,g,j]=h;
+  for(let i=0;i<64;i++){
+   const t1=(j+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+k[i]+w[i])>>>0;
+   const t2=((r(a,2)^r(a,13)^r(a,22))+((a&b)^(a&c)^(b&c)))>>>0;
+   j=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;
+  }
+  const vals=[a,b,c,d,e,f,g,j];for(let i=0;i<8;i++)h[i]=(h[i]+vals[i])>>>0;
+ }
+ return h.map(x=>x.toString(16).padStart(8,'0')).join('');
+}
+async function payloadSHA256(bytes){if(globalThis.crypto?.subtle){const digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('')}return sha256Fallback(bytes)}
+async function archiveHash(file){return payloadSHA256(new Uint8Array(await file.arrayBuffer()))}
+async function parseZip(file,label){
+ if(!file||file.size<22||file.size>MAX_ARCHIVE)fail(label+': ZIPのサイズが許容範囲外です (最大50MB)');
+ const tailStart=Math.max(0,file.size-65557),tail=new DataView(await file.slice(tailStart).arrayBuffer());let e=-1;
+ for(let i=tail.byteLength-22;i>=0;i--){if(tail.getUint32(i,true)===0x06054b50&&i+22+tail.getUint16(i+20,true)===tail.byteLength){e=i;break}}
+ if(e<0)fail(label+': ZIP終端（EOCD）がありません');
+ const disk=tail.getUint16(e+4,true),cDisk=tail.getUint16(e+6,true),nDisk=tail.getUint16(e+8,true),n=tail.getUint16(e+10,true);
+ const cdBytes=tail.getUint32(e+12,true),cdStart=tail.getUint32(e+16,true);
+ if(disk||cDisk||nDisk!==n)fail(label+': 分割ZIPには対応していません');
+ if(n===0xffff||cdBytes===0xffffffff||cdStart===0xffffffff)fail(label+': ZIP64形式には対応していません');
+ if(n>MAX_ENTRIES||cdBytes>MAX_CD||cdStart+cdBytes>tailStart+e)fail(label+': ZIP中央ディレクトリが不正または大きすぎます');
+ const dv=new DataView(await file.slice(cdStart,cdStart+cdBytes).arrayBuffer());let p=0,total=0,seen=new Set(),files=[],notes=[];
+ for(let i=0;i<n;i++){
+  if(p+46>dv.byteLength||dv.getUint32(p,true)!==0x02014b50)fail(label+': ZIP中央ディレクトリに破損があります');
+  const flags=dv.getUint16(p+8,true),method=dv.getUint16(p+10,true),crc=dv.getUint32(p+16,true);
+  const madeBy=dv.getUint16(p+4,true)>>>8,unixType=(dv.getUint32(p+38,true)>>>16)&0xf000;
+  if(madeBy===3&&unixType!==0&&unixType!==0x8000&&unixType!==0x4000)fail(label+': ZIP内のシンボリックリンク等を拒否しました');
+  const comp=dv.getUint32(p+20,true),size=dv.getUint32(p+24,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+  const end=p+46+nl+el+cl;
+  if(end>dv.byteLength)fail(label+': エントリの長さが不正です');
+  let raw;try{raw=decoder.decode(new Uint8Array(dv.buffer,dv.byteOffset+p+46,nl))}catch{fail(label+': UTF-8以外のファイル名が含まれます')}
+  const directory=raw.endsWith('/'),name=validName(raw),key=name.toLocaleLowerCase('und');
+  if(seen.has(key))fail(label+': 大文字小文字・Unicodeの重複パス: '+name);
+  seen.add(key);
+  if(flags&((1<<0)|(1<<6)|(1<<13)))fail(label+': 暗号化または保護されたZIPは使用できません');
+  if(![0,8].includes(method))notes.push(name+': 対応外の圧縮方式（メタデータのみ）');
+  if(size===0xffffffff||comp===0xffffffff||off===0xffffffff||off>=cdStart)fail(label+': ZIP64または不正なローカルヘッダ位置です');
+  if(!directory){total+=size;if(size>MAX_SINGLE||total>MAX_TOTAL||size>4096&&size/Math.max(comp,1)>MAX_RATIO)fail(label+': 圧縮サイズ制限を超えています');}
+  if(!directory&&!ignoreMac(name))files.push({name,size,compressed:comp,crc32:hex32(crc),crc,method,flags,offset:off});
+  p=end;
+ }
+ if(p!==dv.byteLength)fail(label+': 中央ディレクトリの末尾が一致しません');
+ if(!files.length)fail(label+': 対象ソースがありません');
+ const paths=files.map(x=>x.name.split('/'));
+ let root=null;
+ if(paths.every(x=>x.length>1)&&new Set(paths.map(x=>x[0].toLowerCase())).size===1){
+  const candidate=paths[0][0];
+  if(candidate.toLowerCase()===file.name.replace(/\.zip$/i,'').toLowerCase()||/(?:receipthub|receipt[_-]?hub|v\d{2,3}[_-])/i.test(candidate))root=candidate;
+ }
+ const normalized=new Map();
+ for(const entry of files){let relative=root?entry.name.slice(root.length+1):entry.name;
+  if(!relative)fail(label+': 無効な相対パス');
+  const key=relative.normalize('NFC').toLowerCase();if(normalized.has(key))fail(label+': 正規化後のパス重複: '+relative);
+  normalized.set(key,{path:relative,originalPath:entry.name,size:entry.size,compressed:entry.compressed,crc32:entry.crc32,crc:entry.crc,method:entry.method,flags:entry.flags,offset:entry.offset});
+ }
+ const values=[...normalized.values()].sort((a,b)=>a.path.localeCompare(b.path,'ja'));
+ if(!values.some(x=>isSource(x.path)))fail(label+': アプリのソースコードが見つかりません');
+ // The whole-archive digest is an integrity fingerprint, not provenance.
+ const sha256=await archiveHash(file);
+ return {label,name:file.name,archiveBytes:file.size,sha256,centralStart:cdStart,root,fileCount:values.length,sourceCount:values.filter(x=>isSource(x.path)).length,sensitivePaths:values.filter(x=>sensitive(x.path)).map(x=>x.path),notes,files:values};
+}
+function compare(v77,v79){const a=new Map(v77.files.map(x=>[x.path,x])),b=new Map(v79.files.map(x=>[x.path,x]));
+ const groups={added:[],changed:[],removed:[],unchanged:[]};
+ const names=[...new Set([...a.keys(),...b.keys()])].sort((x,y)=>x.localeCompare(y,'ja'));
+ for(const name of names){const old=a.get(name),now=b.get(name);
+  if(!old)groups.added.push(name);else if(!now)groups.removed.push(name);
+  else if(old.size===now.size&&old.crc32===now.crc32)groups.unchanged.push(name);else groups.changed.push(name);
+ }
+ return groups;
+}
+function makeReport(v77,v79){const diff=v77?compare(v77,v79):null;
+ const tasks={};if(diff)for(const kind of ['added','changed','removed'])for(const path of diff[kind])for(const a of area(path))(tasks[a]??=[]).push({kind,path});
+ return {schema:'receipt-hub-source-manifest-v119',createdAt:new Date().toISOString(),method:'ZIP_CENTRAL_DIRECTORY_CRC32_SIZE_NO_DECOMPRESSION',privacy:'LOCAL_BROWSER_ONLY',codeExecutedFromZIP:false,provenanceVerified:false,comparisonConfidence:'CANDIDATE_METADATA_ONLY',v77,v79,diff,reviewTasks:tasks,limitations:['CRC32 and size do not prove content equality','Central-directory data is not full ZIP integrity verification','ZIP hashes prove byte identity only, not trusted origin','Actual source-level integration and runtime tests not performed']};
+}
+function el(tag,text,cls){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
+function draw(){const r=state.report,box=$('results'),metrics=$('metrics'),details=$('details');if(!r){box.classList.remove('visible');return}
+ box.classList.add('visible');metrics.replaceChildren();details.replaceChildren();
+ $('result-note').textContent=r.diff?'v77 → v79 暫定差分（ZIPメタデータに基づく候補）':'v79のファイル構成のみ確認済み。v77未指定のため差分解析は未実施';
+ const items=r.diff?[['追加',r.diff.added.length],['変更候補',r.diff.changed.length],['削除',r.diff.removed.length],['同一候補',r.diff.unchanged.length]]:[['v79 ファイル',r.v79.fileCount],['うちソース',r.v79.sourceCount],['要注意パス',r.v79.sensitivePaths.length],['元データ',0]];
+ for(const [name,value] of items){const card=el('div',undefined,'metric');card.append(el('strong',String(value)),el('span',name));metrics.append(card)}
+ const intro=el('details');intro.open=true;intro.append(el('summary','ZIPの基本情報'));const pre=el('pre',[r.v77,r.v79].filter(Boolean).map(x=>`${x.label}: ${x.name}\nファイル数 ${x.fileCount}｜ソース数 ${x.sourceCount}\nZIP SHA-256: ${x.sha256??'このブラウザでは計算不可'}\n原本の真正性: 未検証${x.sensitivePaths.length?'\n注意: 機密ファイル名の候補 '+x.sensitivePaths.length+'件':''}`).join('\n\n'));intro.append(pre);details.append(intro);
+ if(r.diff){for(const [kind,title] of [['added','追加ファイル'],['changed','変更候補'],['removed','削除ファイル']]){const row=el('details');row.append(el('summary',`${title}（${r.diff[kind].length}件）`),el('pre',r.diff[kind].join('\n')||'なし'));details.append(row)}
+  const task=el('details');task.append(el('summary','確認すべき機能別タスク'),el('pre',Object.entries(r.reviewTasks).map(([area,things])=>`${area}\n${things.map(t=>`・${t.kind}: ${t.path}`).join('\n')}`).join('\n\n')||'差分なし'));details.append(task)}
+ if(r.contentVerification){
+  const v=r.contentVerification,section=el('details');section.open=true;
+  section.append(el('summary','ソース内容SHA-256の検証結果（実データ）'));
+  section.append(el('pre',`v77: ${v.sourceFilesHashed.v77}ファイル / v79: ${v.sourceFilesHashed.v79}ファイル\n追加 ${v.diff.added.length}・変更 ${v.diff.changed.length}・削除 ${v.diff.removed.length}・同一 ${v.diff.unchanged.length}\n※ ソース拡張子のみの内容比較。画像・動画・DBは対象外。原本真正性・アプリ動作は未検証。`));
+  details.prepend(section);
+  $('result-note').textContent='ソース内容SHA-256検証済み（v77/v79のソース対象のみ）。ファイル数とCRC32による暫定差分とは別に表示しています。';
+ }
+ const plan=sharePlan(r.v79);$('exportStats').textContent=`共有候補 ${plan.included.length}ファイル ／ 除外 ${plan.excluded.length}ファイル。ZIPを作成しても自動送信されません。`;
+ const info=el('details');info.append(el('summary',`共有候補のファイル名（${plan.included.length}件）`),el('pre',plan.included.map(x=>x.path).join('\n')));details.append(info);
+ const caution=el('details');caution.append(el('summary',`除外ファイル（${plan.excluded.length}件）`),el('pre',plan.excluded.map(x=>x.reason+'｜'+x.path).join('\n')||'なし'));details.append(caution);
+ const caveat=el('p','※ 元ZIP内のコードは実行しません。内容SHA-256比較は別途ボタンで実行してください。本番への統合・実機検証は未実施。ソース中の機密情報を確認してから共有してください。','note');details.append(caveat);
+}
+function downloadJSON(obj){const publicReport=JSON.parse(JSON.stringify(obj));for(const version of ['v77','v79'])if(publicReport[version]){
+  delete publicReport[version].centralStart;
+  publicReport[version].files=publicReport[version].files.map(({path,size,compressed,crc32})=>({path,size,compressed,crc32}));
+ }const bytes=encoder.encode(JSON.stringify(publicReport,null,2)+'\n');const blob=new Blob([bytes],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='receipt_hub_v119_source_manifest.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+function summary(r){if(!r.diff)return `Receipt Hub v119: v79ファイル${r.v79.fileCount}件、ソース${r.v79.sourceCount}件。v77未選択のため差分未実施。原本真正性・実統合は未検証。`;
+if(r.contentVerification)return `Receipt Hub v119: ソース内容SHA-256検証済み。追加${r.contentVerification.diff.added.length}件、変更${r.contentVerification.diff.changed.length}件、削除${r.contentVerification.diff.removed.length}件、同一${r.contentVerification.diff.unchanged.length}件。対象はソースファイルのみ。本体統合・実機動作は未検証。`;
+return `Receipt Hub v119 暫定差分：追加${r.diff.added.length}件、変更候補${r.diff.changed.length}件、削除${r.diff.removed.length}件、同一候補${r.diff.unchanged.length}件。CRC32/サイズに基づくメタデータ比較で、SHA-256ファイル照合・実統合は未実施。`}
+for(const version of ['79','77'])$('file'+version).addEventListener('change',e=>{const f=e.target.files?.[0];$('name'+version).textContent=f?.name??'ファイルを選択';state.report=null;draw();$('error').hidden=true});
+$('reset').addEventListener('click',()=>{for(const version of ['79','77']){$('file'+version).value='';$('name'+version).textContent='ファイルを選択'}state.report=null;draw();$('error').hidden=true});
+$('analyze').addEventListener('click',async()=>{const f79=$('file79').files?.[0],f77=$('file77').files?.[0];$('error').hidden=true;state.report=null;draw();if(!f79){$('error').textContent='v79のZIPを選択してください。';$('error').hidden=false;return}
+ $('analyze').disabled=true;$('analyze').textContent='検査中…';try{const v79=await parseZip(f79,'v79'),v77=f77?await parseZip(f77,'v77'):null;state.report=makeReport(v77,v79);draw()}catch(e){$('error').textContent='検査を停止しました：'+(e?.message??String(e));$('error').hidden=false}finally{$('analyze').disabled=false;$('analyze').textContent='ZIPを検査する'}});
+$('verifyContent').addEventListener('click',async()=>{
+ const r=state.report,f77=$('file77').files?.[0],f79=$('file79').files?.[0];
+ if(!r||!f77||!f79){$('error').textContent='内容比較にはv77とv79のZIPを両方選択してください。';$('error').hidden=false;return}
+ const btn=$('verifyContent');btn.disabled=true;btn.textContent='実ソースSHA-256を検証中…';$('error').hidden=true;
+ try{r.contentVerification=await contentHashReport(f77,f79,r.v77,r.v79);draw()}
+ catch(e){r.contentVerification=null;$('error').textContent='内容比較を停止しました：'+(e?.message??String(e));$('error').hidden=false}
+ finally{btn.disabled=false;btn.textContent='ソースの内容SHA-256を比較'}
+});
+$('download').addEventListener('click',()=>{if(state.report)downloadJSON(state.report)});
+$('exportSource').addEventListener('click',async()=>{
+ const f=$('file79').files?.[0],r=state.report;if(!r||!f)return;
+ const button=$('exportSource');button.disabled=true;button.textContent='ソースZIP作成中…';$('error').hidden=true;
+ try{const out=await makeSourceZip(f,r.v79);downloadBlob(out.blob,'ReceiptHub_v79_source_only_v119_for_review.zip');
+  $('exportStats').textContent=`ソース限定ZIPを作成しました：${out.count}ファイル（内容とCRC32を確認済み）。${out.excluded}ファイルを除外しました。共有前に内容を確認してください。`;
+ }catch(e){$('error').textContent='ソース限定ZIPを作成できません：'+(e?.message??String(e));$('error').hidden=false}
+ finally{button.disabled=false;button.textContent='ソース限定ZIPを保存'}
+});
+$('copy').addEventListener('click',async()=>{if(!state.report)return;const s=summary(state.report);try{await navigator.clipboard.writeText(s);$('copy').textContent='コピーしました'}catch{$('copy').textContent='コピー失敗：JSONで保存してください'}setTimeout(()=>$('copy').textContent='要約をコピー',2400)});
+})();
+</script>
+</body>
+</html>
