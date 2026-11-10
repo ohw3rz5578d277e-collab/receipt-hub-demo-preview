@@ -45,3 +45,25 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Test synthetic ZIP safety and source SHA-256 logic
         run: python tools/source-intake/tests/test_browser.py
+
+  webkit-mobile-compat:
+    name: WebKit mobile viewport compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout PR source without persisted token
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install WebKit browser and Python dependencies
+        run: |
+          python -m pip install --disable-pip-version-check "playwright==1.57.0"
+          python -m playwright install --with-deps webkit
+      - name: Test ZIP intake on WebKit engine (synthetic ZIPs)
+        env:
+          SKIP_CHROMIUM: "1"
+        run: python tools/source-intake/tests/test_browser_compat.py
