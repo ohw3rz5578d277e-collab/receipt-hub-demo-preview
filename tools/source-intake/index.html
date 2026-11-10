@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YEPNlT4sMeudCs+Pu2Bm6gS+kgAxAD0MyVarWLyK7/0='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hx2DuPo1zFgbHb/k+E2Q0vgJoZkLrAUKURvgDYcLz4c='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Receipt Hub｜ZIP差分・ソース受け渡し</title>
 <meta name="description" content="v77とv79のソースZIPを端末内だけで比較するオフラインツール">
 <style>
@@ -288,7 +288,10 @@ async function parseZip(file,label){
   if(p+46>dv.byteLength||dv.getUint32(p,true)!==0x02014b50)fail(label+': ZIP中央ディレクトリに破損があります');
   const flags=dv.getUint16(p+8,true),method=dv.getUint16(p+10,true),crc=dv.getUint32(p+16,true);
   const madeBy=dv.getUint16(p+4,true)>>>8,unixType=(dv.getUint32(p+38,true)>>>16)&0xf000;
-  if(madeBy===3&&unixType!==0&&unixType!==0x8000&&unixType!==0x4000)fail(label+': ZIP内のシンボリックリンク等を拒否しました');
+  // A symlink mode is unsafe regardless of the ZIP creator's claimed platform.
+  // Preserve the original Unix-origin guard for other special file modes.
+  if(unixType===0xa000 || ((madeBy===3||madeBy===19)&&unixType!==0&&unixType!==0x8000&&unixType!==0x4000))
+   fail(label+': ZIP内のシンボリックリンク等を拒否しました');
   const comp=dv.getUint32(p+20,true),size=dv.getUint32(p+24,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
   const end=p+46+nl+el+cl;
   if(end>dv.byteLength)fail(label+': エントリの長さが不正です');
@@ -304,6 +307,15 @@ async function parseZip(file,label){
   p=end;
  }
  if(p!==dv.byteLength)fail(label+': 中央ディレクトリの末尾が一致しません');
+ // A file may not simultaneously be the parent directory of another ZIP entry.
+ // Reject this before emitting a manifest or a source-only re-packed archive.
+ const filePaths=new Set(files.map(x=>x.name.normalize('NFC').toLowerCase()));
+ for(const entry of files){const parts=entry.name.split('/');
+  for(let depth=1;depth<parts.length;depth++){
+   const parent=parts.slice(0,depth).join('/').normalize('NFC').toLowerCase();
+   if(filePaths.has(parent))fail(label+': ファイルとディレクトリが衝突しています: '+entry.name);
+  }
+ }
  if(!files.length)fail(label+': 対象ソースがありません');
  const paths=files.map(x=>x.name.split('/'));
  let root=null;
