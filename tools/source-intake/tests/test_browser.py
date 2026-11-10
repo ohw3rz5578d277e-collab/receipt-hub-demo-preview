@@ -9,7 +9,7 @@ from functools import partial
 from zipfile import ZipFile, ZIP_DEFLATED
 from playwright.async_api import async_playwright
 
-HTML = Path(__file__).with_name('index.html')
+HTML = Path(__file__).resolve().parent.parent / 'index.html'
 
 
 def zipit(path: Path, items: dict[str, bytes]) -> None:
